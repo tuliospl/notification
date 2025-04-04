@@ -65,7 +65,7 @@ spring.mail.password=sua_senha
 
 1. Clone o repositório
 ```bash
-git clone [url-do-repositorio]
+git clone git@github.com:tuliospl/notification.git
 ```
 
 2. Inicie os serviços do Kafka e Kafdrop
