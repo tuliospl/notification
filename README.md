@@ -1,119 +1,176 @@
-# Sistema de Notificações
+# Serviço de Notificações
 
-## 📋 Descrição
-Sistema genérico de notificações que permite o envio de diferentes tipos de mensagens (email, SMS, etc.) baseado em templates recebidos através de tópicos de mensageria.
+Serviço responsável por gerenciar e enviar notificações através de diferentes canais (email, SMS, etc).
 
-## 🚀 Tecnologias Utilizadas
+## Tecnologias Utilizadas
+
 - Java 17
-- Spring Boot 3.4.4
+- Spring Boot 3.x
 - Spring Data JPA
 - Spring Mail
 - Spring Kafka
-- PostgreSQL
 - Apache Kafka
-- Kafdrop (UI para gerenciamento do Kafka)
-- Lombok
-- Maven
-
-## 🏗️ Arquitetura
-
-### Componentes Principais
-- **API REST**: Endpoints para gerenciamento de notificações
-- **Serviço de Notificações**: Core do sistema responsável pelo processamento e envio
-- **Kafka**: Sistema de mensageria para recebimento de notificações
-- **Templates**: Sistema flexível de templates para diferentes tipos de mensagens
-- **Persistência**: Armazenamento de histórico e configurações no PostgreSQL
-
-### Fluxo de Funcionamento
-1. Recebimento de mensagem do tópico Kafka
-2. Processamento do template
-3. Seleção do canal de envio (email, SMS, etc.)
-4. Envio da notificação
-5. Registro do histórico
-
-## 🛠️ Configuração do Ambiente
-
-### Pré-requisitos
-- Java 17
-- Maven
-- Docker e Docker Compose
+- Kafdrop
 - PostgreSQL
+- Docker
+- Docker Compose
+- Maven
 
-### Configuração do Banco de Dados
-```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/notification_db
-spring.datasource.username=seu_usuario
-spring.datasource.password=sua_senha
+## Arquitetura
+
+O projeto segue os princípios da Arquitetura Hexagonal (Ports and Adapters):
+
+### Camadas
+
+1. **Domain** (Centro da aplicação)
+   - Contém as entidades de domínio
+   - Define os ports (interfaces) para adaptadores
+   - Regras de negócio core
+   - Independente de frameworks
+   - Pacotes:
+     - `model`: Entidades e enums
+     - `service`: Interfaces de serviço
+     - `repository`: Interfaces de repositório
+
+2. **Application**
+   - Implementa os casos de uso
+   - Orquestra o fluxo entre domain e infrastructure
+   - Implementa os handlers de mensagens
+   - Pacotes:
+     - `service`: Implementações dos serviços
+
+3. **Infrastructure**
+   - Implementa os adaptadores
+   - Persistência (JPA)
+   - Mensageria (Kafka)
+   - Email (Spring Mail)
+   - Pacotes:
+     - `persistence`: JPA e mappers
+     - `kafka`: Produtores e consumidores
+     - `service`: Estratégias de notificação
+     - `config`: Configurações
+
+4. **API**
+   - Controladores REST
+   - DTOs
+   - Endpoints públicos
+   - Pacotes:
+     - `controller`: Endpoints REST
+     - `dto`: Objetos de transferência
+
+## Estrutura do Projeto
+
+```
+src/main/java/com/ms/notification/
+├── api/
+│   ├── controller/
+│   │   └── NotificationController.java
+│   └── dto/
+│       └── NotificationRequest.java
+├── domain/
+│   ├── model/
+│   │   ├── Notification.java
+│   │   ├── NotificationChannel.java
+│   │   └── NotificationStatus.java
+│   ├── service/
+│   │   └── NotificationService.java
+│   └── repository/
+│       └── NotificationRepository.java
+├── application/
+│   └── service/
+│       └── NotificationServiceImpl.java
+└── infrastructure/
+    ├── persistence/
+    │   ├── entity/
+    │   │   └── NotificationEntity.java
+    │   ├── repository/
+    │   │   └── JpaNotificationRepository.java
+    │   └── mapper/
+    │       └── NotificationMapper.java
+    ├── kafka/
+    │   ├── NotificationConsumer.java
+    │   └── NotificationProducer.java
+    ├── service/
+    │   └── EmailNotificationStrategy.java
+    └── config/
+        └── KafkaConfig.java
 ```
 
-### Configuração do Kafka
+## Endpoints da API
+
+### Enviar Notificação
+```
+POST /api/notifications
+```
+
+Payload:
+```json
+{
+  "recipients": ["email@exemplo.com"],
+  "sender": "sistema@exemplo.com",
+  "title": "Título da Notificação",
+  "body": "Conteúdo da notificação",
+  "channel": "EMAIL"
+}
+```
+
+## Configuração
+
+### Kafka
 ```properties
 spring.kafka.bootstrap-servers=localhost:29092
 spring.kafka.consumer.group-id=notification-group
 notification.topic.name=notification-topic
 ```
 
-### Configuração de Email
+### Email
 ```properties
-spring.mail.host=smtp.seu_provedor.com
+spring.mail.host=smtp.gmail.com
 spring.mail.port=587
-spring.mail.username=seu_email
-spring.mail.password=sua_senha
+spring.mail.username=seu-email@gmail.com
+spring.mail.password=sua-senha
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
 ```
 
-## 🚀 Como Executar
-
-1. Clone o repositório
-```bash
-git clone git@github.com:tuliospl/notification.git
+### Banco de Dados
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/notification_db
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 ```
 
-2. Inicie os serviços do Kafka e Kafdrop
+## Executando o Projeto
+
+1. Inicie os serviços com Docker Compose:
 ```bash
 docker-compose up -d
 ```
 
-3. Configure as variáveis de ambiente ou application.properties
-
-4. Execute o projeto
+2. Execute a aplicação:
 ```bash
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
-5. Acesse o Kafdrop para gerenciar tópicos e mensagens
-```
-http://localhost:9000
-```
+## Fluxo de Mensagens
 
-## 📝 Estrutura do Projeto
-```
-src/
-├── main/
-│   ├── java/
-│   │   └── com/ms/notification/
-│   │       ├── config/          # Configurações do sistema
-│   │       ├── controller/      # Controladores REST
-│   │       ├── kafka/           # Consumidores e produtores Kafka
-│   │       ├── model/           # Entidades JPA
-│   │       ├── repository/      # Repositórios JPA
-│   │       ├── service/         # Lógica de negócio
-│   │       ├── dto/             # Objetos de transferência de dados
-│   │       ├── enums/           # Enumeradores
-│   │       └── NotificationApplication.java
-│   └── resources/
-│       └── application.properties
-```
+1. Cliente envia requisição para a API
+2. API converte DTO para objeto de domínio
+3. Serviço processa a notificação
+4. Estratégia apropriada é selecionada baseada no canal
+5. Notificação é enviada e status é atualizado
+6. Histórico é persistido no banco de dados
 
-## 🔄 Fluxo de Mensagens
-1. Mensagem é enviada para o tópico `notification-topic`
-2. `NotificationConsumer` recebe e processa a mensagem
-3. Mensagem é convertida para objeto `NotificationMessage`
-4. Sistema processa a notificação de acordo com o canal especificado
-5. Resultado é persistido no banco de dados
+## Canais de Notificação
 
-## 🤝 Contribuição
-1. Faça o fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
+- **EMAIL**: Envio de emails
+- **SMS**: Envio de mensagens SMS
+- **PUSH**: Notificações push
+
+## Status da Notificação
+
+- **PENDING**: Aguardando envio
+- **SENT**: Enviada com sucesso
+- **ERROR**: Erro no envio
